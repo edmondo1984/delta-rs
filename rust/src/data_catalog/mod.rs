@@ -2,6 +2,8 @@
 
 use std::fmt::Debug;
 
+use crate::{DeltaTable, DeltaTableMetaData};
+
 #[cfg(feature = "glue")]
 pub mod glue;
 
@@ -16,15 +18,31 @@ pub enum DataCatalogError {
         metadata: String,
     },
 
-    /// Glue Glue Data Catalog Error
+    /// Missing metadata in the catalog
+    #[cfg(feature = "glue")]
+    #[error("Missing Metadata {metadata} in the Delta Table Metadata ")]
+    InconsistentDeltaTableMetadata {
+        /// The missing metadata property
+        metadata: String,
+    },
+
+    /// Glue Catalog Get Table Error
     #[cfg(feature = "glue")]
     #[error("Catalog glue error: {source}")]
-    GlueError {
+    GlueGetTableError {
         /// The underlying Glue Data Catalog Error
         #[from]
         source: rusoto_core::RusotoError<rusoto_glue::GetTableError>,
     },
-
+    /// Glue Catalog Add Table Error
+    #[cfg(feature = "glue")]
+    #[error("Catalog glue error: {source}")]
+    GlueCreateTableError {
+        /// The underlying Glue Data Catalog Error
+        #[from]
+        source: rusoto_core::RusotoError<rusoto_glue::CreateTableError>,
+    },
+    
     /// Error caused by the http request dispatcher not being able to be created.
     #[cfg(feature = "glue")]
     #[error("Failed to create request dispatcher: {source}")]
@@ -61,6 +79,16 @@ pub trait DataCatalog: Send + Sync + Debug {
         database_name: &str,
         table_name: &str,
     ) -> Result<String, DataCatalogError>;
+    
+    /// Record the table uri in the Data Catalog
+    async fn record_table_storage_location(
+        &self,
+        catalog_id: String,
+        table:DeltaTable,
+        metadata:DeltaTableMetaData
+    ) -> Result<(), DataCatalogError>;
+
+
 }
 
 /// Get the Data Catalog

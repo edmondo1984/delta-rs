@@ -87,13 +87,39 @@ struct RawDeltaTableMetaData {
     configuration: HashMap<String, Option<String>>,
 }
 
+#[pyclass]
+struct DataCatalog {
+    _catalog:deltalake::data_catalog::DataCatalog,
+}
+
+#[pymethods]
+impl DataCatalog {
+    pub fn register(&self, data_catalog_id: &str, table_uri:&str) -> PyResult<()> {
+        let result = data_catalog.record_table_storage_location(
+            data_catalog_id,
+            database_name,
+            table_name,
+            table_uri
+        );
+    }
+    #[new]
+    fn new(catalog_type: &str) -> PyResult<Self> {
+        let catalog = deltalake::data_catalog::get_data_catalog(catalog_type);
+        match catalog {
+            Ok(_catalog) => Ok(DataCatalog{_catalog}),
+            Err(err) => Err(PyDeltaTableError::from_data_catalog(err))
+        }
+    }
+
+}
+
 #[pymethods]
 impl RawDeltaTable {
     #[new]
     fn new(
         table_uri: &str,
         version: Option<deltalake::DeltaDataTypeLong>,
-        storage_options: Option<HashMap<String, String>>,
+        storage_options: Option<HashMap<String, String>>
     ) -> PyResult<Self> {
         let mut table = deltalake::DeltaTableBuilder::from_uri(table_uri)
             .map_err(PyDeltaTableError::from_raw)?;
@@ -595,7 +621,6 @@ fn write_new_deltalake(
         None, // TODO
         Some(add_actions.iter().map(|add| add.into()).collect()),
     );
-
     rt()?.block_on(fut).map_err(PyDeltaTableError::from_raw)?;
 
     Ok(())

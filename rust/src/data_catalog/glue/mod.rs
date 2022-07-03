@@ -1,12 +1,16 @@
 //! Glue Data Catalog.
 //!
 //! This module is gated behind the "glue" feature.
+
+
 use super::{DataCatalog, DataCatalogError};
 use rusoto_core::{HttpClient, Region};
 use rusoto_credential::AutoRefreshingProvider;
 use rusoto_sts::WebIdentityProvider;
 
-use rusoto_glue::{GetTableRequest, Glue, GlueClient};
+use crate::{DeltaTable, DeltaTableMetaData};
+
+use rusoto_glue::{GetTableRequest, TableInput, CreateTableRequest, Glue, GlueClient, StorageDescriptor};
 
 /// A Glue Data Catalog implement of the `Catalog` trait
 pub struct GlueDataCatalog {
@@ -107,4 +111,64 @@ impl DataCatalog for GlueDataCatalog {
             Err(err) => Err(err),
         }
     }
+    async fn record_table_storage_location(
+        &self,
+        catalog_id: String,
+        table:DeltaTable,
+        metadata:DeltaTableMetaData
+    ) -> Result<(), DataCatalogError> {
+        let table_name = metadata.name.ok_or(
+            DataCatalogError::InconsistentDeltaTableMetadata{
+                metadata: String::from("name")
+            }
+        );
+        let request = table_name.map(|name| 
+            CreateTableRequest{
+                database_name: String::from("unknown"),
+                table_input: TableInput{
+                    description:metadata.description,
+                    last_access_time:None,
+                    last_analyzed_time:None,
+                    name:name,
+                    owner:None,
+                    parameters:None,
+                    partition_keys:None,
+                    retention:None,
+                    storage_descriptor:Some(StorageDescriptor{ 
+                        bucket_columns: None, 
+                        columns: None, 
+                        compressed: None, 
+                        input_format: None, 
+                        location: Some(table.table_uri), 
+                        number_of_buckets: None, 
+                        output_format: None, 
+                        parameters: None, 
+                        schema_reference: None, 
+                        serde_info: None, 
+                        skewed_info: None, 
+                        sort_columns: None, 
+                        stored_as_sub_directories: None
+                    }),
+                    table_type:None,
+                    target_table:None,
+                    view_expanded_text:None,
+                    view_original_text:None
+                }, 
+                catalog_id: Some(catalog_id), 
+                partition_indexes: None 
+            }
+        );
+        match request {
+            Ok(res) => {
+                let response = self.client.create_table(res).await;
+                match response {
+                    Ok(_) => Ok(()),
+                    Err(failure) => Err(DataCatalogError::GlueCreateTableError { source: failure })
+                }
+            },
+            Err(err) => Err(err)
+        }
+        
+    }
+
 }
