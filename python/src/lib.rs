@@ -119,7 +119,7 @@ impl RawDeltaTable {
     fn new(
         table_uri: &str,
         version: Option<deltalake::DeltaDataTypeLong>,
-        storage_options: Option<HashMap<String, String>>
+        storage_options: Option<HashMap<String, String>>,
     ) -> PyResult<Self> {
         let mut table = deltalake::DeltaTableBuilder::from_uri(table_uri)
             .map_err(PyDeltaTableError::from_raw)?;
