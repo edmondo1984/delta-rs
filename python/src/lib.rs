@@ -621,6 +621,7 @@ fn write_new_deltalake(
         None, // TODO
         Some(add_actions.iter().map(|add| add.into()).collect()),
     );
+    
     rt()?.block_on(fut).map_err(PyDeltaTableError::from_raw)?;
 
     Ok(())
