@@ -46,7 +46,7 @@ use futures::{TryFutureExt, TryStreamExt};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
-use deltalake::DeltaTableMetaData;
+
 const MAX_SUPPORTED_WRITER_VERSION: i32 = 1;
 
 /// Command for writing data into Delta table
@@ -410,49 +410,6 @@ async fn do_write_partition(
 
     Ok(Box::pin(stream))
 }
-
-fn write_new_deltalake(
-    table_uri: String,
-    schema: ArrowSchema,
-    add_actions: Vec<action::Add>,
-    _mode: &str,
-    partition_by: Vec<String>,
-    name: Option<String>,
-    description: Option<String>,
-    configuration: Option<HashMap<String, Option<String>>>,
-    data_catalog: Option<String>
-) -> Result<()> {
-    let mut table = get_backend_for_uri(&table_uri).map(
-        |backend_uri| deltalake::DeltaTable::new(
-            &table_uri,
-            backend_uri,
-            deltalake::DeltaTableConfig::default(),
-        )
-    );
-    let metadata = DeltaTableMetaData::new(
-        name,
-        description,
-        None, // Format
-        (&schema).try_into()?,
-        partition_by,
-        configuration.unwrap_or_default(),
-    );
-
-    let fut = table.create(
-        metadata,
-        action::Protocol {
-            min_reader_version: 1,
-            min_writer_version: 1, // TODO: Make sure we comply with protocol
-        },
-        None, // TODO
-        Some(add_actions.iter().map(|add| add.into()).collect()),
-    );
-    let catalog = data_catalog.map(|catalog| data_catalog::get_data_catalog(catalog))
-    
-    
-}
-
-
 
 #[cfg(test)]
 mod tests {
