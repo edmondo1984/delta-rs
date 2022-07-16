@@ -1,8 +1,6 @@
 //! Glue Data Catalog.
 //!
 //! This module is gated behind the "glue" feature.
-
-
 use super::{DataCatalog, DataCatalogError};
 use rusoto_core::{HttpClient, Region};
 use rusoto_credential::AutoRefreshingProvider;
